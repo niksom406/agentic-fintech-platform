@@ -129,9 +129,9 @@ export default function CasesPage() {
           <Card key={s.label} className="border-border/60">
             <CardContent className="pt-5">
               <p className="text-xs uppercase tracking-widest text-muted-foreground">{s.label}</p>
-              <p className={cn("mt-2 text-3xl font-bold tabular-nums", s.color)}>
+              <div className={cn("mt-2 text-3xl font-bold tabular-nums", s.color)}>
                 {loading ? <Skeleton className="h-8 w-16 inline-block" /> : s.value}
-              </p>
+              </div>
             </CardContent>
           </Card>
         ))}
