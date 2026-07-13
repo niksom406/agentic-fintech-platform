@@ -53,14 +53,33 @@ const config: Config = {
         mono: ["var(--font-mono)"],
       },
       borderRadius: {
+        sm: "0.375rem",
+        DEFAULT: "0.5rem",
+        md: "0.625rem",
+        lg: "0.75rem",
         xl: "1rem",
-        "2xl": "1.5rem",
+        "2xl": "1.25rem",
+        "3xl": "1.5rem",
       },
       boxShadow: {
-        panel: "0 18px 48px rgba(12, 24, 36, 0.12)",
+        panel: "0 1px 3px rgba(0,0,0,0.07), 0 8px 32px rgba(0,0,0,0.08)",
+        "panel-lg": "0 2px 8px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.12)",
+        glow: "0 0 0 1px rgba(139,92,246,0.3), 0 4px 20px rgba(139,92,246,0.15)",
+        "glow-sm": "0 0 12px rgba(139,92,246,0.2)",
       },
-      backgroundImage: {
-        grid: "linear-gradient(to right, rgba(15, 118, 110, 0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(15, 118, 110, 0.12) 1px, transparent 1px)",
+      keyframes: {
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "shimmer": {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
+      },
+      animation: {
+        "fade-in-up": "fade-in-up 0.35s ease both",
+        "shimmer": "shimmer 1.6s infinite",
       },
     },
   },

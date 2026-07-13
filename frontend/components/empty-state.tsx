@@ -1,6 +1,6 @@
-import { FileSearch } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function EmptyState({
   title,
@@ -10,16 +10,16 @@ export function EmptyState({
   description: string;
 }) {
   return (
-    <Card className="panel-gradient">
-      <CardHeader>
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary">
-          <FileSearch className="h-5 w-5 text-muted-foreground" />
+    <Card className="border-dashed bg-secondary/30">
+      <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-secondary/60">
+          <AlertCircle className="h-5 w-5 text-muted-foreground" />
         </div>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent />
+        <div className="max-w-sm space-y-1.5">
+          <p className="font-semibold text-foreground">{title}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+        </div>
+      </CardContent>
     </Card>
   );
 }
-
