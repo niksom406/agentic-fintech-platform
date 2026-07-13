@@ -156,7 +156,7 @@ export default function HomePage() {
                 <CheckCircle className="h-5 w-5" />
               </div>
               <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-success">Step 5</p>
-              <h4 className="mt-1 text-sm font-semibold text-foreground">Final Decison</h4>
+              <h4 className="mt-1 text-sm font-semibold text-foreground">Final Decision</h4>
               <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
                 Approve, reject, or escalate request to the review queue.
               </p>
