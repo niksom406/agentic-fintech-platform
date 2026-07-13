@@ -18,7 +18,7 @@ export function RuleViolationsChart({ data }: { data: Array<{ rule_name: string;
             <XAxis type="number" stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12 }} />
             <YAxis dataKey="rule_name" type="category" width={180} stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12 }} />
             <Tooltip />
-            <Bar dataKey="count" fill="#f59e0b" radius={[0, 12, 12, 0]} />
+            <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

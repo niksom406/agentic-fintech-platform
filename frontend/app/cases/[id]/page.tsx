@@ -87,7 +87,11 @@ export default function CaseDetailPage() {
                   </div>
                   <div className="rounded-2xl bg-secondary/60 p-4">
                     <p className="text-sm text-muted-foreground">Confidence</p>
-                    <p className="mt-2 text-xl font-semibold">{caseDetail.overall_confidence?.toFixed(1)}%</p>
+                    <p className="mt-2 text-xl font-semibold">
+                      {caseDetail.overall_confidence != null
+                        ? `${(caseDetail.overall_confidence * 100).toFixed(1)}%`
+                        : "—"}
+                    </p>
                   </div>
                 </div>
               </CardContent>

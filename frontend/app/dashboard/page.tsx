@@ -39,52 +39,62 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <section className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
           <Card className="panel-gradient border-primary/20">
-            <CardContent className="space-y-4">
-              <Badge variant="outline">Governance-first command center</Badge>
-              <h2 className="text-3xl font-semibold">Guardrail operating dashboard</h2>
-              <p className="max-w-2xl text-muted-foreground">
-                Monitor evaluated cases, policy effectiveness, human review load, and traceability health across the
-                financial AI governance pipeline.
+            <CardContent className="space-y-3 p-6">
+              <Badge variant="primary">Command Center</Badge>
+              <h2 className="text-2xl font-bold tracking-tight">Guardrail Operating Dashboard</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
+                Monitor evaluated cases, policy effectiveness, human review queue load, and system metrics across the AI governance pipeline.
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>System Health</CardTitle>
-              <CardDescription>Current governance fabric posture and platform signals.</CardDescription>
+            <CardHeader className="p-5 pb-0">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Governance Fabric</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
+            <CardContent className="grid gap-3 sm:grid-cols-2 p-5">
               {summary ? (
-                Object.entries(summary.system_health).map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border border-border/70 p-4">
-                    <p className="text-sm capitalize text-muted-foreground">{label.replaceAll("_", " ")}</p>
-                    <p className="mt-2 text-lg font-semibold">{value}</p>
+                <>
+                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Volume</p>
+                    <p className="mt-1 text-sm font-bold">{summary.system_health.total_cases} cases</p>
                   </div>
-                ))
+                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Reviews</p>
+                    <p className="mt-1 text-sm font-bold">{summary.system_health.pending_reviews} pending</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Interventions</p>
+                    <p className="mt-1 text-sm font-bold">{summary.system_health.fairness_flags} flags</p>
+                  </div>
+                  <div className="rounded-lg border border-success/20 bg-success/5 p-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-success">Approval Rate</p>
+                    <p className="mt-1 text-sm font-bold text-success">{summary.system_health.approval_rate}</p>
+                  </div>
+                </>
               ) : (
                 <>
-                  <Skeleton className="h-24" />
-                  <Skeleton className="h-24" />
-                  <Skeleton className="h-24" />
-                  <Skeleton className="h-24" />
+                  <Skeleton className="h-12 rounded-lg" />
+                  <Skeleton className="h-12 rounded-lg" />
+                  <Skeleton className="h-12 rounded-lg" />
+                  <Skeleton className="h-12 rounded-lg" />
                 </>
               )}
             </CardContent>
           </Card>
         </section>
 
-        {error ? <Card><CardContent>{error}</CardContent></Card> : null}
+        {error ? <Card><CardContent className="p-4 text-destructive">{error}</CardContent></Card> : null}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {summary ? (
             <>
               <KpiCard title="Total cases" value={summary.total_cases.toString()} description="Evaluated portfolio volume" icon={Activity} />
-              <KpiCard title="Approved" value={summary.approved.toString()} description="Guardrailed straight-through approvals" icon={CheckCircle2} />
-              <KpiCard title="Rejected" value={summary.rejected.toString()} description="Deterministic blocker outcomes" icon={XCircle} />
-              <KpiCard title="Escalated" value={summary.escalated.toString()} description="Cases routed to human oversight" icon={AlertTriangle} />
+              <KpiCard title="Approved" value={summary.approved.toString()} description="Guardrailed approvals" icon={CheckCircle2} />
+              <KpiCard title="Rejected" value={summary.rejected.toString()} description="Deterministic blocks" icon={XCircle} />
+              <KpiCard title="Escalated" value={summary.escalated.toString()} description="Human review overrides" icon={AlertTriangle} />
               <KpiCard
                 title="Average risk score"
                 value={summary.average_risk_score.toFixed(1)}
@@ -93,25 +103,25 @@ export default function DashboardPage() {
               />
               <KpiCard
                 title="Average confidence"
-                value={`${summary.average_confidence.toFixed(1)}%`}
-                description="Model and evidence confidence blend"
+                value={`${(summary.average_confidence * 100).toFixed(1)}%`}
+                description="Evidence confidence blend"
                 icon={Scale}
               />
               <KpiCard
                 title="Fairness flags"
                 value={summary.fairness_flags_count.toString()}
-                description="Governance interventions recorded"
+                description="Governance flags raised"
                 icon={ShieldAlert}
               />
               <KpiCard
                 title="Pending review"
                 value={summary.pending_human_review_count.toString()}
-                description="Open human review items"
+                description="Open review items"
                 icon={Clock3}
               />
             </>
           ) : (
-            Array.from({ length: 8 }).map((_, index) => <Skeleton key={index} className="h-40 rounded-2xl" />)
+            Array.from({ length: 8 }).map((_, index) => <Skeleton key={index} className="h-28 rounded-lg" />)
           )}
         </section>
 

@@ -18,7 +18,7 @@ export function RiskHistogramChart({ data }: { data: Array<{ bucket: string; cou
             <XAxis dataKey="bucket" stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12 }} />
             <YAxis stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12 }} />
             <Tooltip />
-            <Bar dataKey="count" fill="#0f766e" radius={[12, 12, 0, 0]} />
+            <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

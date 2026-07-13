@@ -4,7 +4,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const COLORS = ["#0f766e", "#dc2626", "#f59e0b"];
+const COLORS = ["#8b5cf6", "#f43f5e", "#f59e0b"];
 
 export function DecisionDistributionChart({ data }: { data: Array<{ name: string; value: number }> }) {
   return (

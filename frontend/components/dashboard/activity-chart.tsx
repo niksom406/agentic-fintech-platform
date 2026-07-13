@@ -16,15 +16,15 @@ export function ActivityChart({ data }: { data: Array<{ date: string; count: num
           <AreaChart data={data}>
             <defs>
               <linearGradient id="activityFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#0f766e" stopOpacity={0.65} />
-                <stop offset="95%" stopColor="#0f766e" stopOpacity={0.03} />
+                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.01} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+            <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
             <XAxis dataKey="date" stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12 }} />
             <YAxis stroke="currentColor" tick={{ fill: "currentColor", fontSize: 12 }} />
             <Tooltip />
-            <Area type="monotone" dataKey="count" stroke="#0f766e" fill="url(#activityFill)" strokeWidth={2.5} />
+            <Area type="monotone" dataKey="count" stroke="#8b5cf6" fill="url(#activityFill)" strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </CardContent>
