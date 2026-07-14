@@ -1,29 +1,75 @@
 import { type LucideIcon } from "lucide-react";
-
 import { Card, CardContent } from "@/components/ui/card";
+
+export interface KpiCardProps {
+  title: string;
+  value: string;
+  description: string;
+  icon: LucideIcon;
+  trend?: {
+    text: string;
+    direction: "up" | "down" | "neutral";
+  };
+}
 
 export function KpiCard({
   title,
   value,
   description,
   icon: Icon,
-}: {
-  title: string;
-  value: string;
-  description: string;
-  icon: LucideIcon;
-}) {
+  trend,
+}: KpiCardProps) {
+  // Determine icon color based on title/type
+  let iconColor = "text-primary";
+  const lowerTitle = title.toLowerCase();
+  if (lowerTitle.includes("approve")) iconColor = "text-emerald-400";
+  else if (lowerTitle.includes("reject")) iconColor = "text-rose-400";
+  else if (lowerTitle.includes("escalat") || lowerTitle.includes("warn")) iconColor = "text-amber-400";
+  else if (lowerTitle.includes("risk")) iconColor = "text-violet-400";
+  else if (lowerTitle.includes("confidence")) iconColor = "text-sky-400";
+  else if (lowerTitle.includes("flag")) iconColor = "text-red-400";
+  else if (lowerTitle.includes("pending") || lowerTitle.includes("review")) iconColor = "text-fuchsia-400";
+  else if (lowerTitle.includes("total") || lowerTitle.includes("case")) iconColor = "text-indigo-400";
+
   return (
-    <Card className="hover:border-primary/30 transition-all duration-200 group">
-      <CardContent className="flex items-start justify-between p-5 space-y-0">
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground/80 leading-normal">{description}</p>
+    <Card className="hover:border-border/80 transition-all duration-150">
+      <CardContent className="p-4 flex flex-col items-start space-y-0">
+        {/* Top: Icon (no bg box, flat colored icon like reference image) */}
+        <div className={iconColor}>
+          <Icon className="h-5 w-5" />
         </div>
-        <div className="rounded-lg border border-border bg-secondary/40 p-2 text-muted-foreground group-hover:text-primary group-hover:border-primary/20 group-hover:bg-primary/5 transition-all duration-150">
-          <Icon className="h-4.5 w-4.5" />
-        </div>
+
+        {/* Middle: Title */}
+        <p className="text-[13px] font-medium text-muted-foreground mt-3 leading-none">
+          {title}
+        </p>
+
+        {/* Middle: Large Value */}
+        <p className="text-2xl font-bold tracking-tight text-foreground mt-1.5 leading-none">
+          {value}
+        </p>
+
+        {/* Bottom: Trend/Subtext */}
+        {trend ? (
+          <p className="flex items-center gap-1 text-[11px] font-medium mt-2 leading-none">
+            <span
+              className={
+                trend.direction === "up"
+                  ? "text-emerald-400"
+                  : trend.direction === "down"
+                  ? "text-rose-400"
+                  : "text-muted-foreground"
+              }
+            >
+              {trend.direction === "up" ? "↑" : trend.direction === "down" ? "↓" : "•"}{" "}
+              {trend.text}
+            </span>
+          </p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/75 mt-2 leading-none">
+            {description}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
