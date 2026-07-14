@@ -40,36 +40,14 @@ export function KpiCard({
         </div>
 
         {/* Middle: Title */}
-        <p className="text-[13px] font-medium text-muted-foreground mt-3 leading-none">
+        <p className="text-[13px] font-medium text-muted-foreground mt-2 leading-none">
           {title}
         </p>
 
         {/* Middle: Large Value */}
-        <p className="text-2xl font-bold tracking-tight text-foreground mt-1.5 leading-none">
+        <p className="text-3xl font-bold tracking-tight text-foreground mt-1.5 leading-none">
           {value}
         </p>
-
-        {/* Bottom: Trend/Subtext */}
-        {trend ? (
-          <p className="flex items-center gap-1 text-[11px] font-medium mt-2 leading-none">
-            <span
-              className={
-                trend.direction === "up"
-                  ? "text-emerald-400"
-                  : trend.direction === "down"
-                  ? "text-rose-400"
-                  : "text-muted-foreground"
-              }
-            >
-              {trend.direction === "up" ? "↑" : trend.direction === "down" ? "↓" : "•"}{" "}
-              {trend.text}
-            </span>
-          </p>
-        ) : (
-          <p className="text-[11px] text-muted-foreground/75 mt-2 leading-none">
-            {description}
-          </p>
-        )}
       </CardContent>
     </Card>
   );

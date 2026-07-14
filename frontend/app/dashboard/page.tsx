@@ -56,56 +56,48 @@ export default function DashboardPage() {
                 value={summary.total_cases.toString()}
                 description="Evaluated portfolio volume"
                 icon={Activity}
-                trend={{ text: "+12.5% than last week", direction: "up" }}
               />
               <KpiCard
                 title="Approved"
                 value={summary.approved.toString()}
                 description="Guardrailed approvals"
                 icon={CheckCircle2}
-                trend={{ text: "+8.2% than last week", direction: "up" }}
               />
               <KpiCard
                 title="Rejected"
                 value={summary.rejected.toString()}
                 description="Deterministic blocks"
                 icon={XCircle}
-                trend={{ text: "-15.0% than last week", direction: "down" }}
               />
               <KpiCard
                 title="Escalated"
                 value={summary.escalated.toString()}
                 description="Human review overrides"
                 icon={AlertTriangle}
-                trend={{ text: "+4.1% than last week", direction: "up" }}
               />
               <KpiCard
                 title="Average risk score"
                 value={summary.average_risk_score.toFixed(1)}
                 description="Portfolio risk centerline"
                 icon={TrendingUp}
-                trend={{ text: "-2.4% than last week", direction: "down" }}
               />
               <KpiCard
                 title="Average confidence"
                 value={`${(summary.average_confidence * 100).toFixed(1)}%`}
                 description="Evidence confidence blend"
                 icon={Scale}
-                trend={{ text: "+1.8% than last week", direction: "up" }}
               />
               <KpiCard
                 title="Fairness flags"
                 value={summary.fairness_flags_count.toString()}
                 description="Governance flags raised"
                 icon={ShieldAlert}
-                trend={{ text: "0.0% than last week", direction: "neutral" }}
               />
               <KpiCard
                 title="Pending review"
                 value={summary.pending_human_review_count.toString()}
                 description="Open review items"
                 icon={Clock3}
-                trend={{ text: "-12.5% than last week", direction: "down" }}
               />
             </>
           ) : (
