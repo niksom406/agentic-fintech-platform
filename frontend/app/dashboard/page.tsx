@@ -39,54 +39,14 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <section className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
-          <Card className="panel-gradient border-primary/20">
-            <CardContent className="space-y-3 p-6">
-              <Badge variant="primary">Command Center</Badge>
-              <h2 className="text-2xl font-bold tracking-tight">Guardrail Operating Dashboard</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-                Monitor evaluated cases, policy effectiveness, human review queue load, and system metrics across the AI governance pipeline.
-              </p>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="p-5 pb-0">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Governance Fabric</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 p-5">
-              {summary ? (
-                <>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Volume</p>
-                    <p className="mt-1 text-sm font-bold">{summary.system_health.total_cases} cases</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Reviews</p>
-                    <p className="mt-1 text-sm font-bold">{summary.system_health.pending_reviews} pending</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Interventions</p>
-                    <p className="mt-1 text-sm font-bold">{summary.system_health.fairness_flags} flags</p>
-                  </div>
-                  <div className="rounded-lg border border-success/20 bg-success/5 p-3">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-success">Approval Rate</p>
-                    <p className="mt-1 text-sm font-bold text-success">{summary.system_health.approval_rate}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Skeleton className="h-12 rounded-lg" />
-                  <Skeleton className="h-12 rounded-lg" />
-                  <Skeleton className="h-12 rounded-lg" />
-                  <Skeleton className="h-12 rounded-lg" />
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </section>
 
         {error ? <Card><CardContent className="p-4 text-destructive">{error}</CardContent></Card> : null}
+
+        <div className="flex flex-col items-start gap-1 mb-2">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Highlights</h2>
+          <p className="text-sm font-medium text-muted-foreground">Latest governance statistics</p>
+        </div>
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {summary ? (
@@ -153,15 +113,25 @@ export default function DashboardPage() {
           )}
         </section>
 
+        <div className="flex flex-col items-start gap-1 mb-2 mt-8">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Analytics</h2>
+          <p className="text-sm font-medium text-muted-foreground">Distribution and risk scoring trends</p>
+        </div>
+
         <section className="grid gap-6 xl:grid-cols-2">
           {charts ? <DecisionDistributionChart data={charts.decision_distribution} /> : <Skeleton className="h-[430px] rounded-2xl" />}
           {charts ? <RiskHistogramChart data={charts.risk_histogram} /> : <Skeleton className="h-[430px] rounded-2xl" />}
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section className="grid gap-6 xl:grid-cols-2 mt-6">
           {charts ? <RuleViolationsChart data={charts.rule_violations} /> : <Skeleton className="h-[430px] rounded-2xl" />}
           {charts ? <ActivityChart data={charts.activity_over_time} /> : <Skeleton className="h-[430px] rounded-2xl" />}
         </section>
+
+        <div className="flex flex-col items-start gap-1 mb-2 mt-8">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Operations Feed</h2>
+          <p className="text-sm font-medium text-muted-foreground">Recent activity and audit trails</p>
+        </div>
 
         <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           {summary ? <RecentActivity items={summary.recent_activity} /> : <Skeleton className="h-[520px] rounded-2xl" />}

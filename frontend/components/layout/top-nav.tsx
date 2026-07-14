@@ -9,11 +9,15 @@ import { cn } from "@/lib/utils";
 export function TopNav() {
   return (
     <div className="sticky top-0 z-20 flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-card/70 px-5 py-3 backdrop-blur-md shadow-panel">
-      {/* Left: breadcrumb + status */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Guardrail Console</span>
-        </div>
+      <div className="flex flex-col items-start min-w-0">
+        <h1 className="text-lg font-bold text-foreground leading-tight tracking-tight">
+          Guardrail Operating Dashboard
+        </h1>
+        <span className="text-xs font-medium text-muted-foreground">
+          Financial AI Governance Solution
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
         <Badge variant="success" className="hidden sm:inline-flex">
           <span className="relative flex h-1.5 w-1.5 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
