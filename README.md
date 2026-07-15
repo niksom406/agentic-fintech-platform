@@ -41,31 +41,96 @@ Financial institutions increasingly use AI for credit / lending recommendations.
 
 ## Architecture
 
+### High-level system
+
 ```text
-Next.js frontend  ──HTTP/WS──►  FastAPI backend
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         NEXT.JS FRONTEND (Vercel)                            │
+│  Landing · Dashboard · Evaluation · Cases · Reviews · Chat · Policies · Audit│
+│  HTTP / SSE / WebSocket  →  NEXT_PUBLIC_API_BASE_URL                         │
+└───────────────────────────────────┬─────────────────────────────────────────┘
                                     │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-              Policy engine    Risk engine    Governance engine
-                    │               │               │
-                    └───────► Final decision (deterministic) ◄───┘
-                                      │
-                                      ▼
-                         LangGraph LLM agent pipeline
-                         (enrichment only — never overrides)
-                                      │
-                                      ▼
-                         SQLite + optional Chroma (RAG)
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         FASTAPI BACKEND (Railway)                            │
+│  routes/  →  services/  →  engines + agents  →  SQLite (+ optional Chroma)   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Layer | Stack |
-|-------|--------|
-| Frontend | Next.js, TypeScript, Tailwind |
-| Backend | FastAPI, SQLAlchemy, SQLite |
-| Agents | LangGraph, OpenAI (+ Groq fallback) |
-| RAG | ChromaDB + OpenAI embeddings + NetworkX graph expansion |
-| Tracing | LangSmith (optional) |
-| Deploy | Railway (API) + Vercel (UI) |
+### Evaluation pipeline (per case)
+
+Upstream bank/model inputs arrive as a case payload (`model_recommendation`, confidence, evidence). This app is the **guardrail layer** — it does not train the credit model; it governs the recommendation.
+
+```text
+                    ┌──────────────────┐
+                    │  Case submission │
+                    │  (intake API)    │
+                    └────────┬─────────┘
+                             ▼
+              ┌──────────────────────────────┐
+              │     DETERMINISTIC LAYER      │  ← always authoritative
+              │  1. Policy engine            │     credit / DTI / evidence /
+              │  2. Risk engine              │     confidence thresholds
+              │  3. Governance engine        │     fairness / AML-style flags
+              │  4. Final decision           │     APPROVE | REJECT | ESCALATE
+              └──────────────┬───────────────┘
+                             ▼
+              ┌──────────────────────────────┐
+              │   LANGGRAPH AGENT LAYER      │  ← enrichment only
+              │  Phase 1 (parallel):         │     never overrides policy
+              │    intake · risk · governance│
+              │  Handoff → Phase 2:          │
+              │    decision · audit          │
+              │  + optional GraphRAG context │
+              │  + optional LangSmith trace  │
+              └──────────────┬───────────────┘
+                             ▼
+              ┌──────────────────────────────┐
+              │  Persist + audit trail       │
+              │  Human review queue if needed│
+              └──────────────────────────────┘
+```
+
+### Request / runtime paths
+
+| Path | How it works |
+|------|----------------|
+| **New Evaluation** | `POST /cases` → `POST …/evaluate` or `GET …/evaluate/stream` (SSE live stages) |
+| **Dashboard** | Aggregates cases, reviews, flags, charts from SQLite |
+| **Human Review** | Pending escalations → `POST /reviews/{id}/decision` (note ≥ 10 chars) |
+| **AI Analyst chat** | REST session create + **WebSocket** token stream; tools can query cases/policies/RAG |
+| **Policies** | Versioned rule sets with history + rollback |
+| **Audit export** | Per-case JSON / TXT export |
+
+### GraphRAG (optional)
+
+```text
+Case flags / query
+       │
+       ▼
+ infer seed categories ──► NetworkX policy graph (hops)
+       │
+       ▼
+ Chroma semantic search (filtered by category)
+       │
+       ▼
+ Policy passages injected into governance / chat prompts
+```
+
+Policy text lives in `backend/app/rag/policy_documents.py` (hand-authored chunks). Set `INGEST_POLICIES_ON_STARTUP=true` to embed into Chroma on boot (memory-heavy on small hosts).
+
+### Stack by layer
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js (App Router), TypeScript, Tailwind, Recharts |
+| Backend API | FastAPI, Uvicorn, Pydantic Settings |
+| Persistence | SQLAlchemy + SQLite |
+| Deterministic engines | Custom policy / risk / governance services |
+| Agents | LangGraph orchestrator + OpenAI (`gpt-4o-mini`), Groq fallback |
+| RAG | ChromaDB, OpenAI `text-embedding-3-small`, NetworkX |
+| Observability | LangSmith (optional), structured audit logs, LLM usage logs |
+| Hosting | Railway (API container) + Vercel (frontend) |
 
 ---
 
@@ -73,24 +138,131 @@ Next.js frontend  ──HTTP/WS──►  FastAPI backend
 
 ```text
 agentic-fintech-platform/
-├── backend/                 # FastAPI app
-│   ├── app/
-│   │   ├── agents/          # LangGraph orchestrator + agents
-│   │   ├── rag/             # Chroma + GraphRAG retriever
-│   │   ├── routes/          # HTTP / WS / SSE endpoints
-│   │   ├── services/        # Policy, risk, evaluation, chat, audit
-│   │   └── ...
+├── README.md
+├── DEPLOY.md                      # Railway + Vercel hosting walkthrough
+├── docker-compose.yml             # Local full-stack containers
+├── .env.example                   # Root env template for Compose
+├── .gitignore
+│
+├── backend/                       # FastAPI guardrail API
 │   ├── Dockerfile
 │   ├── railway.toml
 │   ├── requirements.txt
-│   └── .env.example
-├── frontend/                # Next.js app
-│   ├── app/                 # Pages (dashboard, cases, chat, …)
-│   ├── components/
-│   └── .env.example
-├── docker-compose.yml
-├── DEPLOY.md                # Railway + Vercel hosting notes
-└── README.md
+│   ├── run.py                     # Local uvicorn entry (respects PORT)
+│   ├── .env.example
+│   │
+│   └── app/
+│       ├── main.py                # FastAPI app, CORS, lifespan, routers
+│       ├── seed.py                # Demo policies + cases on startup
+│       │
+│       ├── core/
+│       │   ├── config.py          # Env / settings
+│       │   ├── database.py        # SQLAlchemy engine + sessions
+│       │   └── llm.py             # OpenAI / Groq client helpers
+│       │
+│       ├── models/                # ORM tables
+│       │   ├── case.py
+│       │   ├── case_input.py
+│       │   ├── policy_version.py
+│       │   ├── policy_result.py
+│       │   ├── risk_result.py
+│       │   ├── governance_flag.py
+│       │   ├── human_review.py
+│       │   ├── audit_log.py
+│       │   ├── llm_usage_log.py
+│       │   ├── chat_session.py
+│       │   └── chat_message.py
+│       │
+│       ├── schemas/               # Pydantic request/response models
+│       │   ├── cases.py
+│       │   ├── reviews.py
+│       │   ├── policies.py
+│       │   └── chat.py
+│       │
+│       ├── routes/                # HTTP / SSE / WebSocket endpoints
+│       │   ├── health.py
+│       │   ├── dashboard.py
+│       │   ├── cases.py           # CRUD + evaluate + SSE stream
+│       │   ├── reviews.py
+│       │   ├── policies.py
+│       │   ├── chat.py            # Sessions + WS streaming
+│       │   └── audit.py           # Export JSON / TXT
+│       │
+│       ├── services/              # Business logic
+│       │   ├── intake_service.py
+│       │   ├── policy_engine.py   # Deterministic policy rules
+│       │   ├── risk_engine.py     # Deterministic risk score
+│       │   ├── governance_engine.py
+│       │   ├── evaluation_service.py   # Full evaluate pipeline
+│       │   ├── pipeline_progress.py    # SSE stage events
+│       │   ├── review_service.py
+│       │   ├── policy_service.py       # Versioning / rollback
+│       │   ├── audit_export.py
+│       │   ├── langsmith_links.py
+│       │   ├── chat_agent.py           # Streaming chat LLM
+│       │   └── chat_tools.py           # Tool calls (cases, RAG, …)
+│       │
+│       ├── agents/                # LangGraph multi-agent layer
+│       │   ├── base_agent.py
+│       │   ├── orchestrator.py    # Graph: phase 1 → phase 2
+│       │   ├── intake_agent.py
+│       │   ├── risk_agent.py
+│       │   ├── governance_agent.py
+│       │   ├── decision_agent.py
+│       │   └── audit_agent.py
+│       │
+│       └── rag/                   # GraphRAG knowledge layer
+│           ├── policy_documents.py    # Curated policy chunks
+│           ├── chroma_store.py        # Persistent Chroma + embeddings
+│           ├── ingest.py              # Embed + upsert documents
+│           ├── graph_reasoner.py      # Category graph expansion
+│           └── retriever.py           # Public retrieve_policy_context()
+│
+└── frontend/                      # Next.js control panel
+    ├── Dockerfile
+    ├── vercel.json
+    ├── package.json
+    ├── next.config.ts
+    ├── tailwind.config.ts
+    ├── tsconfig.json
+    ├── .env.example
+    │
+    ├── app/                       # App Router pages
+    │   ├── layout.tsx
+    │   ├── page.tsx               # Marketing / landing
+    │   ├── globals.css
+    │   ├── dashboard/page.tsx
+    │   ├── evaluation/page.tsx    # New Review + live pipeline UI
+    │   ├── cases/
+    │   │   ├── page.tsx
+    │   │   └── [id]/page.tsx     # Case detail + explainability
+    │   ├── reviews/page.tsx
+    │   ├── chat/page.tsx          # AI Analyst (WebSocket)
+    │   ├── policies/page.tsx
+    │   └── audit/page.tsx
+    │
+    ├── components/
+    │   ├── layout/
+    │   │   ├── app-shell.tsx
+    │   │   ├── sidebar-nav.tsx    # Desktop nav
+    │   │   └── top-nav.tsx        # Top bar + mobile hamburger menu
+    │   ├── cases/
+    │   │   ├── agent-pipeline-progress.tsx
+    │   │   ├── explainability-panel.tsx
+    │   │   └── case-history-timeline.tsx
+    │   ├── dashboard/             # KPI cards + charts + activity
+    │   ├── reviews/
+    │   │   └── review-decision-dialog.tsx
+    │   ├── policies/
+    │   │   └── policy-table.tsx
+    │   ├── ui/                    # Shared primitives (button, card, …)
+    │   ├── theme-provider.tsx
+    │   └── theme-toggle.tsx
+    │
+    └── lib/
+        ├── api.ts                 # Backend client (HTTP + WS URL helper)
+        ├── types.ts               # Shared TypeScript types
+        └── utils.ts
 ```
 
 ---
