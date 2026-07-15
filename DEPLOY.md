@@ -23,12 +23,12 @@ git push -u origin master
 
 1. Go to [railway.app](https://railway.app) → login with GitHub.
 2. **New Project** → **Deploy from GitHub** → select this repo.
-3. Open the service → **Settings** (this is the usual cause of a 7s “Build image” failure):
-   - **Root Directory:** `backend` ← required for this monorepo
-   - **Builder:** Dockerfile (auto-detects `backend/Dockerfile` + `backend/railway.toml`)
-   - Do **not** leave Root Directory as `/` — there is no Dockerfile at the repo root
-   - Optional: set **Watch Paths** / config `watchPatterns` to `/backend/**` so README-only commits do not redeploy
-   - If a README commit shows **FAILED** but an older deploy is still **Active**, your API may still be fine — check `/health`4. **Variables** → add (copy from your local `.env`, do not commit them):
+3. Open the service → **Settings**:
+   - **Builder:** **Dockerfile** (not Railpack — if logs show `railpack` + `frontend/`, switch builder)
+   - **Root Directory:** either `backend` **or** `/` (repo root now has a Dockerfile for monorepo deploys)
+   - Watch paths should prefer `/backend/**` so README-only commits do not redeploy
+   - If a README commit shows **FAILED** but an older deploy is still **Active**, check `/health` — the API may still be fine
+4. **Variables** → add (copy from your local `.env`, do not commit them):
 
 | Variable | Example |
 |----------|---------|
