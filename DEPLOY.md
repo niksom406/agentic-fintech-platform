@@ -23,9 +23,10 @@ git push -u origin master
 
 1. Go to [railway.app](https://railway.app) → login with GitHub.
 2. **New Project** → **Deploy from GitHub** → select this repo.
-3. Open the service → **Settings**:
-   - **Root Directory:** `backend`
-   - Railway should detect the `Dockerfile`.
+3. Open the service → **Settings** (this is the usual cause of a 7s “Build image” failure):
+   - **Root Directory:** `backend` ← required for this monorepo
+   - **Builder:** Dockerfile (auto-detects `backend/Dockerfile` + `backend/railway.toml`)
+   - Do **not** leave Root Directory as `/` — there is no Dockerfile at the repo root
 4. **Variables** → add (copy from your local `.env`, do not commit them):
 
 | Variable | Example |
@@ -94,6 +95,8 @@ Redeploy the backend (or restart) so CORS picks up the change.
 
 ## Local reminder
 
+Run each service directly:
+
 ```bash
 # backend
 cd backend && source .venv/bin/activate && python run.py
@@ -103,3 +106,15 @@ cd frontend && npm run dev
 ```
 
 Frontend expects `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000` locally.
+
+### Or run both with Docker Compose
+
+```bash
+cp .env.example .env   # fill in OPENAI_API_KEY etc.
+docker compose up --build
+```
+
+This builds `backend/Dockerfile` and `frontend/Dockerfile` and starts both
+services together (frontend on `:3000`, backend on `:8000`), reading config
+from the root `.env`. Useful for verifying the containerized setup before
+deploying to Railway/Vercel.

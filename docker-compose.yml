@@ -1,0 +1,47 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./agentic_fintech.db}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      PRIMARY_LLM_MODEL: ${PRIMARY_LLM_MODEL:-gpt-4o-mini}
+      FALLBACK_LLM_MODEL: ${FALLBACK_LLM_MODEL:-llama-3.1-8b-instant}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-1500}
+      ENABLE_LLM_AGENTS: ${ENABLE_LLM_AGENTS:-false}
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-agentic-fintech-platform}
+      SEED_ON_STARTUP: ${SEED_ON_STARTUP:-true}
+      AUDIT_EXPORT_DIR: ${AUDIT_EXPORT_DIR:-./audit_exports}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    volumes:
+      - backend_data:/app/chroma_db
+      - backend_audit:/app/audit_exports
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend_data:
+  backend_audit:
