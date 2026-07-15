@@ -1,13 +1,14 @@
 # Railway config for the backend service.
-# In the Railway dashboard, also set Root Directory to: backend
-# (required so the Docker build context is the backend/ folder)
+# Dashboard: set Root Directory to `backend`
 
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 120
+# Healthcheck disabled for now — Railway was failing before the public
+# domain/port mapping settled. Re-enable once /health works in the browser:
+# healthcheckPath = "/health"
+# healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

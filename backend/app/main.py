@@ -24,7 +24,6 @@ def _configure_langsmith() -> None:
 
 _configure_langsmith()
 from app.core.database import Base, SessionLocal, engine
-from app.rag.ingest import ingest_policy_documents
 from app.routes.audit import router as audit_router
 from app.routes.cases import router as cases_router
 from app.routes.chat import router as chat_router
@@ -59,7 +58,7 @@ def _ensure_sqlite_columns() -> None:
 async def lifespan(app: FastAPI):
     """
     Runs on startup (before yield) and shutdown (after yield).
-    Keep startup fast so Railway healthchecks pass — defer Chroma ingest.
+    Keep startup fast so the server binds quickly on Railway.
     """
     import asyncio
     import logging
@@ -80,11 +79,13 @@ async def lifespan(app: FastAPI):
 
     ingest_task: asyncio.Task | None = None
 
-    # Phase 5: Embed policy docs in the background so /health is available immediately
+    # Lazy-import RAG so chromadb cannot block / crash process boot
     if settings.enable_llm_agents:
 
         async def _ingest_in_background() -> None:
             try:
+                from app.rag.ingest import ingest_policy_documents
+
                 await asyncio.to_thread(ingest_policy_documents)
             except Exception as exc:
                 logging.getLogger(__name__).warning("Chroma ingest failed (non-fatal): %s", exc)
