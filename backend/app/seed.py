@@ -157,7 +157,8 @@ def seed_demo_cases(db: Session) -> None:
     for case_data in DEMO_CASES:
         submission = CaseSubmission(**case_data)
         case = create_case(db, submission)
-        evaluate_case(db, case.case_id)
+        # Deterministic only — full LLM+RAG seed is too heavy for Railway cold starts
+        evaluate_case(db, case.case_id, skip_llm=True)
 
 
 def seed_demo_data(db: Session) -> None:

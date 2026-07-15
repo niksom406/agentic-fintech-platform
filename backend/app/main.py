@@ -79,8 +79,8 @@ async def lifespan(app: FastAPI):
 
     ingest_task: asyncio.Task | None = None
 
-    # Lazy-import RAG so chromadb cannot block / crash process boot
-    if settings.enable_llm_agents:
+    # Optional: embed policies after boot (can OOM on small hosts — off by default)
+    if settings.enable_llm_agents and settings.ingest_policies_on_startup:
 
         async def _ingest_in_background() -> None:
             try:

@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 
     # App settings
     seed_on_startup: bool = True
+    # Chroma ingest on boot can OOM small Railway containers — off by default
+    ingest_policies_on_startup: bool = False
     audit_export_dir: str = "./audit_exports"
     cors_origins: str = ",".join(DEFAULT_CORS_ORIGINS)
 

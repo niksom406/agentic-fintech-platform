@@ -78,10 +78,13 @@ def evaluate_case(
     db: Session,
     case_id: str,
     on_progress: ProgressCallback | None = None,
+    *,
+    skip_llm: bool = False,
 ) -> Case:
     """
     Runs the full evaluation pipeline for a case.
     Optionally streams stage progress via on_progress (used by SSE).
+    Set skip_llm=True for lightweight seeding (deterministic engines only).
     """
     case = get_case_with_relations(db, case_id)
     if case is None:
@@ -238,6 +241,10 @@ def evaluate_case(
     db.commit()
 
     # ── Step 6: LangGraph LLM agent pipeline ──────────────────────────────────
+    if skip_llm:
+        logger.info("Skipping LLM pipeline for case %s (skip_llm=True)", case_id)
+        return get_case_with_relations(db, case_id)
+
     case = get_case_with_relations(db, case_id)
 
     try:
