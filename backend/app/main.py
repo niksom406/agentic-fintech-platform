@@ -59,9 +59,11 @@ def _ensure_sqlite_columns() -> None:
 async def lifespan(app: FastAPI):
     """
     Runs on startup (before yield) and shutdown (after yield).
-    1. Creates all database tables defined in models/
-    2. Seeds demo data if needed
+    Keep startup fast so Railway healthchecks pass — defer Chroma ingest.
     """
+    import asyncio
+    import logging
+
     # Import all models so SQLAlchemy knows about them before create_all
     import app.models  # noqa: F401
 
@@ -76,17 +78,27 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
-    # Phase 5: Embed policy documents into ChromaDB on first startup
-    # Skips automatically if already populated (idempotent)
+    ingest_task: asyncio.Task | None = None
+
+    # Phase 5: Embed policy docs in the background so /health is available immediately
     if settings.enable_llm_agents:
-        try:
-            ingest_policy_documents()
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).warning("Chroma ingest failed (non-fatal): %s", exc)
+
+        async def _ingest_in_background() -> None:
+            try:
+                await asyncio.to_thread(ingest_policy_documents)
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Chroma ingest failed (non-fatal): %s", exc)
+
+        ingest_task = asyncio.create_task(_ingest_in_background())
 
     yield
-    # Shutdown logic would go here if needed
+
+    if ingest_task and not ingest_task.done():
+        ingest_task.cancel()
+        try:
+            await ingest_task
+        except asyncio.CancelledError:
+            pass
 
 
 settings = get_settings()
