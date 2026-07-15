@@ -27,7 +27,8 @@ git push -u origin master
    - **Root Directory:** `backend` ← required for this monorepo
    - **Builder:** Dockerfile (auto-detects `backend/Dockerfile` + `backend/railway.toml`)
    - Do **not** leave Root Directory as `/` — there is no Dockerfile at the repo root
-4. **Variables** → add (copy from your local `.env`, do not commit them):
+   - Optional: set **Watch Paths** / config `watchPatterns` to `/backend/**` so README-only commits do not redeploy
+   - If a README commit shows **FAILED** but an older deploy is still **Active**, your API may still be fine — check `/health`4. **Variables** → add (copy from your local `.env`, do not commit them):
 
 | Variable | Example |
 |----------|---------|

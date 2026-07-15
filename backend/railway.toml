@@ -1,13 +1,18 @@
 # Railway config for the backend service.
-# Dashboard: set Root Directory to `backend`
+#
+# REQUIRED in Railway dashboard → Settings:
+#   Root Directory: backend
+#   Config file path (if asked): /backend/railway.toml
+#
+# watchPatterns are from the repo root — README-only commits should NOT redeploy.
 
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+watchPatterns = ["/backend/**"]
 
 [deploy]
-# Healthcheck disabled for now — Railway was failing before the public
-# domain/port mapping settled. Re-enable once /health works in the browser:
+# Healthcheck disabled — re-enable once /health is stable on the public URL:
 # healthcheckPath = "/health"
 # healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
