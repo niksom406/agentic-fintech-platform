@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity,
   FileCheck2,
   LayoutDashboard,
   Layers,
@@ -16,7 +15,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
-const sections = [
+export const navSections = [
   {
     label: "Overview",
     items: [
@@ -61,7 +60,7 @@ export function SidebarNav() {
 
       {/* Nav sections */}
       <nav className="flex-1 space-y-5 overflow-y-auto pr-1">
-        {sections.map((section) => (
+        {navSections.map((section) => (
           <div key={section.label}>
             <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
               {section.label}
