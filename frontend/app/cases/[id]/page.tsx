@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Download, FileText, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { Download, ExternalLink, FileText, ShieldCheck, UserRoundCheck } from "lucide-react";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { AgentPipelineProgress, DEFAULT_STAGES } from "@/components/cases/agent-pipeline-progress";
 import { CaseHistoryTimeline } from "@/components/cases/case-history-timeline";
 import { ExplainabilityPanel } from "@/components/cases/explainability-panel";
 import { EmptyState } from "@/components/empty-state";
@@ -16,8 +17,8 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { auditExportUrl, getCase } from "@/lib/api";
-import type { CaseDetail } from "@/lib/types";
+import { auditExportUrl, evaluateCaseStreamUrl, getCase } from "@/lib/api";
+import type { CaseDetail, PipelineStageState, PipelineStreamEvent } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
 function decisionVariant(decision: string | null | undefined) {
@@ -27,16 +28,49 @@ function decisionVariant(decision: string | null | undefined) {
   return "outline";
 }
 
+function stagesFromCase(detail: CaseDetail): PipelineStageState[] {
+  const evaluated = Boolean(detail.evaluated_at);
+  const llmUsed = (detail.llm_usage_logs?.length ?? 0) > 0;
+
+  return DEFAULT_STAGES.map((stage) => {
+    if (!evaluated) {
+      return { ...stage, status: "pending" as const };
+    }
+    if (stage.group === "deterministic") {
+      return { ...stage, status: "done" as const, message: "Completed" };
+    }
+    if (llmUsed) {
+      const agentName = stage.id.replace("llm_", "") + "_agent";
+      const log = detail.llm_usage_logs?.find((l) => l.agent_name === agentName);
+      return {
+        ...stage,
+        status: "done" as const,
+        message: log ? `${log.total_tokens.toLocaleString()} tokens · ${log.latency_ms}ms` : "Completed",
+      };
+    }
+    return { ...stage, status: "skipped" as const, message: "LLM agents not used" };
+  });
+}
+
 export default function CaseDetailPage() {
   const params = useParams<{ id: string }>();
   const [caseDetail, setCaseDetail] = useState<CaseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStageState[]>(DEFAULT_STAGES);
+  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+
+  const loadCase = useCallback(async () => {
+    const detail = await getCase(params.id);
+    setCaseDetail(detail);
+    setPipelineStages(stagesFromCase(detail));
+    return detail;
+  }, [params.id]);
 
   useEffect(() => {
     async function load() {
       try {
-        const detail = await getCase(params.id);
-        setCaseDetail(detail);
+        await loadCase();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load case detail.");
       }
@@ -45,13 +79,82 @@ export default function CaseDetailPage() {
     if (params.id) {
       void load();
     }
-  }, [params.id]);
+  }, [params.id, loadCase]);
+
+  async function runLiveEvaluation() {
+    if (!params.id || pipelineRunning) return;
+    setPipelineRunning(true);
+    setPipelineError(null);
+    setPipelineStages(DEFAULT_STAGES.map((s) => ({ ...s, status: "pending", message: undefined })));
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const source = new EventSource(evaluateCaseStreamUrl(params.id));
+
+        source.onmessage = (event) => {
+          let data: PipelineStreamEvent;
+          try {
+            data = JSON.parse(event.data) as PipelineStreamEvent;
+          } catch {
+            return;
+          }
+
+          if (data.type === "pipeline") {
+            setPipelineStages(
+              data.stages.map((s) => ({
+                id: s.id,
+                label: s.label,
+                group: s.group === "llm" ? "llm" : "deterministic",
+                status: "pending",
+              })),
+            );
+            return;
+          }
+
+          if (data.type === "stage") {
+            setPipelineStages((prev) =>
+              prev.map((stage) =>
+                stage.id === data.stage
+                  ? { ...stage, status: data.status, message: data.message, label: data.label || stage.label }
+                  : stage,
+              ),
+            );
+            return;
+          }
+
+          if (data.type === "complete") {
+            source.close();
+            void loadCase()
+              .then(() => resolve())
+              .catch((err) => reject(err));
+            return;
+          }
+
+          if (data.type === "error") {
+            source.close();
+            reject(new Error(data.content));
+          }
+        };
+
+        source.onerror = () => {
+          source.close();
+          reject(new Error("Pipeline stream disconnected before completion."));
+        };
+      });
+    } catch (err) {
+      setPipelineError(err instanceof Error ? err.message : "Evaluation failed.");
+    } finally {
+      setPipelineRunning(false);
+    }
+  }
 
   const latestReview = (caseDetail?.human_reviews || []).find((review) => review.review_status === "completed");
   const sortedAuditLogs = caseDetail ? [...caseDetail.audit_logs].sort((a, b) => a.created_at.localeCompare(b.created_at)) : [];
   const sortedPolicyResults = caseDetail
     ? [...caseDetail.policy_results].sort((a, b) => Number(b.triggered) - Number(a.triggered) || a.rule_name.localeCompare(b.rule_name))
     : [];
+
+  const hasTrace = Boolean(caseDetail?.langsmith_trace_url);
 
   return (
     <AppShell>
@@ -73,6 +176,7 @@ export default function CaseDetailPage() {
                   <Badge variant="outline">{caseDetail.case_id}</Badge>
                   <Badge variant={decisionVariant(caseDetail.final_decision)}>{caseDetail.final_decision ?? "Pending"}</Badge>
                   <Badge variant="outline">{caseDetail.policy_version_used ?? "No policy"}</Badge>
+                  {hasTrace ? <Badge variant="success">LangSmith traced</Badge> : null}
                 </div>
                 <h2 className="text-3xl font-semibold">{caseDetail.customer_name}</h2>
                 <p className="text-muted-foreground">{caseDetail.worker_summary}</p>
@@ -100,7 +204,7 @@ export default function CaseDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Case metadata</CardTitle>
-                <CardDescription>Timestamp, policy, and audit export controls.</CardDescription>
+                <CardDescription>Timestamp, policy, observability, and audit export controls.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2">
@@ -130,10 +234,30 @@ export default function CaseDetailPage() {
                     <FileText className="h-4 w-4" />
                     TXT audit
                   </Link>
+                  {caseDetail.langsmith_trace_url ? (
+                    <a
+                      href={caseDetail.langsmith_trace_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      LangSmith
+                    </a>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
           </section>
+
+          <AgentPipelineProgress
+            stages={pipelineStages}
+            running={pipelineRunning}
+            error={pipelineError}
+            langsmithTraceUrl={caseDetail.langsmith_trace_url}
+            langsmithRunId={caseDetail.langsmith_run_id}
+            onRun={() => void runLiveEvaluation()}
+          />
 
           <ExplainabilityPanel caseDetail={caseDetail} />
 
@@ -246,6 +370,12 @@ export default function CaseDetailPage() {
                       </div>
                       {flag.llm_reasoning && (
                         <p className="text-sm text-muted-foreground">{flag.llm_reasoning}</p>
+                      )}
+                      {flag.rag_source && (
+                        <div className="rounded-xl border border-border/60 bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground">RAG source: </span>
+                          {flag.rag_source}
+                        </div>
                       )}
                       {Object.keys(flag.context).length > 0 && (
                         <pre className="overflow-x-auto rounded-xl bg-secondary/60 p-3 text-xs leading-6">

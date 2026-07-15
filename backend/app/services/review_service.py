@@ -51,6 +51,11 @@ def get_review_queue(db: Session, status: str | None = None) -> list[dict]:
             "fairness_flag_count": case.fairness_flag_count,
             "review_status": review.review_status,
             "created_at": review.created_at,
+            "reviewer_name": review.reviewer_name,
+            "reviewer_note": review.reviewer_note,
+            "override_reason": review.override_reason,
+            "final_decision": review.final_decision,
+            "reviewed_at": review.reviewed_at,
         })
     return items
 

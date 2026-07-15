@@ -7,7 +7,8 @@ import uvicorn
 
 def main() -> None:
     host = os.getenv("BACKEND_HOST", "0.0.0.0")
-    port = int(os.getenv("BACKEND_PORT", "8000"))
+    # Cloud hosts (Railway/Render) inject PORT; local uses BACKEND_PORT
+    port = int(os.getenv("PORT") or os.getenv("BACKEND_PORT", "8000"))
     reload = os.getenv("APP_ENV", "development") == "development"
 
     uvicorn.run(

@@ -79,6 +79,8 @@ export interface CaseDetail extends Omit<CaseListItem, "evaluated_at"> {
   llm_explanation: string | null;
   top_risk_factors: Array<{ name: string; score: number; reason: string }> | null;
   blocker_rules: Array<{ rule_name: string; outcome: string; severity: string }> | null;
+  langsmith_run_id: string | null;
+  langsmith_trace_url: string | null;
   updated_at: string;
   evaluated_at: string | null;
   case_input?: CaseInputSnapshot;
@@ -114,6 +116,8 @@ export interface CaseDetail extends Omit<CaseListItem, "evaluated_at"> {
     requires_human_review: boolean;
     /** LLM-generated reasoning for why this flag was raised */
     llm_reasoning: string | null;
+    /** Policy document / Chroma source that grounded this flag */
+    rag_source: string | null;
     context: Record<string, unknown>;
   }>;
   audit_logs: Array<{
@@ -183,7 +187,45 @@ export interface EvaluateCaseResponse {
   explanation: string;
   llm_agents_used: boolean;
   total_tokens_used: number;
+  langsmith_run_id?: string | null;
+  langsmith_trace_url?: string | null;
 }
+
+export type PipelineStageStatus = "pending" | "running" | "done" | "error" | "skipped";
+
+export interface PipelineStageState {
+  id: string;
+  label: string;
+  group: "deterministic" | "llm";
+  status: PipelineStageStatus;
+  message?: string;
+}
+
+export type PipelineStreamEvent =
+  | {
+      type: "pipeline";
+      stages: Array<{ id: string; label: string; group: string }>;
+    }
+  | {
+      type: "stage";
+      stage: string;
+      label: string;
+      status: PipelineStageStatus;
+      message?: string;
+    }
+  | {
+      type: "complete";
+      case_id: string;
+      final_decision: string;
+      case_status: string;
+      risk_score: number | null;
+      risk_level: string | null;
+      llm_agents_used: boolean;
+      total_tokens_used: number;
+      langsmith_run_id: string | null;
+      langsmith_trace_url: string | null;
+    }
+  | { type: "error"; content: string };
 
 /** Matches backend ReviewQueueItem schema */
 export interface PendingReview {
@@ -199,6 +241,11 @@ export interface PendingReview {
   fairness_flag_count: number;
   review_status: string;
   created_at: string;
+  reviewer_name?: string | null;
+  reviewer_note?: string | null;
+  override_reason?: string | null;
+  final_decision?: string | null;
+  reviewed_at?: string | null;
 }
 
 export interface PolicyRule {
@@ -223,6 +270,33 @@ export interface PolicyVersion {
   /** Not in the backend schema — use created_at as fallback if missing */
   updated_at?: string;
   rules: PolicyRule[];
+}
+
+/** Matches backend PolicyVersionOut (history list item) */
+export interface PolicyVersionSummary {
+  id: number;
+  version: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  rule_count: number;
+}
+
+export interface PolicyListResponse {
+  versions: PolicyVersionSummary[];
+  total: number;
+  active_version: string | null;
+}
+
+export interface PolicyUpdateResponse {
+  new_version: string;
+  previous_version: string | null;
+  name: string;
+  rule_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
 // ── Chat ─────────────────────────────────────────────────────────────────────

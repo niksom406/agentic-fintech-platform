@@ -92,6 +92,8 @@ class EvaluateCaseResponse(BaseModel):
     requires_human_review: bool
     llm_agents_used: bool
     total_tokens_used: int
+    langsmith_run_id: str | None = None
+    langsmith_trace_url: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -115,6 +117,21 @@ class GovernanceFlagOut(BaseModel):
     requires_human_review: bool
     context: dict
     llm_reasoning: str | None
+    rag_source: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class HumanReviewOut(BaseModel):
+    id: int
+    review_status: str
+    reviewer_name: str | None
+    reviewer_note: str | None
+    override_reason: str | None
+    previous_decision: str | None
+    final_decision: str | None
+    reviewed_at: datetime | None
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -188,6 +205,8 @@ class CaseDetailResponse(BaseModel):
     llm_explanation: str | None
     top_risk_factors: list | None
     blocker_rules: list | None
+    langsmith_run_id: str | None = None
+    langsmith_trace_url: str | None = None
     created_at: datetime
     evaluated_at: datetime | None
     updated_at: datetime
@@ -196,6 +215,7 @@ class CaseDetailResponse(BaseModel):
     risk_result: RiskResultOut | None = None
     governance_flags: list[GovernanceFlagOut] = []
     audit_logs: list[AuditLogOut] = []
+    human_reviews: list[HumanReviewOut] = []
     llm_usage_logs: list[LLMUsageOut] = []
 
     model_config = {"from_attributes": True}

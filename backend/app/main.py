@@ -25,6 +25,7 @@ def _configure_langsmith() -> None:
 _configure_langsmith()
 from app.core.database import Base, SessionLocal, engine
 from app.rag.ingest import ingest_policy_documents
+from app.routes.audit import router as audit_router
 from app.routes.cases import router as cases_router
 from app.routes.chat import router as chat_router
 from app.routes.dashboard import router as dashboard_router
@@ -32,6 +33,26 @@ from app.routes.health import router as health_router
 from app.routes.policies import router as policies_router
 from app.routes.reviews import router as reviews_router
 from app.seed import seed_demo_data
+
+
+def _ensure_sqlite_columns() -> None:
+    """Add new columns on existing SQLite DBs (create_all does not alter tables)."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "cases" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("cases")}
+    alters: list[str] = []
+    if "langsmith_run_id" not in existing:
+        alters.append("ALTER TABLE cases ADD COLUMN langsmith_run_id VARCHAR(64)")
+    if "langsmith_trace_url" not in existing:
+        alters.append("ALTER TABLE cases ADD COLUMN langsmith_trace_url VARCHAR(500)")
+    if not alters:
+        return
+    with engine.begin() as conn:
+        for stmt in alters:
+            conn.execute(text(stmt))
 
 
 @asynccontextmanager
@@ -45,6 +66,7 @@ async def lifespan(app: FastAPI):
     import app.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _ensure_sqlite_columns()
 
     settings = get_settings()
     if settings.seed_on_startup:
@@ -92,3 +114,4 @@ app.include_router(cases_router)
 app.include_router(reviews_router)
 app.include_router(policies_router)
 app.include_router(chat_router)
+app.include_router(audit_router)

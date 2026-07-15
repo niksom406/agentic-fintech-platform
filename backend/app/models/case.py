@@ -52,6 +52,10 @@ class Case(Base):
     deterministic_explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
     llm_explanation: Mapped[str | None] = mapped_column(Text, nullable=True)  # real LLM output
 
+    # LangSmith observability — deep-link to the agent pipeline trace
+    langsmith_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    langsmith_trace_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     # JSON columns for flexible data
     top_risk_factors: Mapped[list | None] = mapped_column(JSON, nullable=True)
     blocker_rules: Mapped[list | None] = mapped_column(JSON, nullable=True)

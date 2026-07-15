@@ -26,7 +26,7 @@ class ReviewDecisionRequest(BaseModel):
 # ── Output schemas ─────────────────────────────────────────────────────────────
 
 class ReviewQueueItem(BaseModel):
-    """Summary of a pending review shown in the queue."""
+    """Summary of a review shown in the queue (pending or completed)."""
     review_id: int
     case_id: str
     customer_name: str
@@ -38,6 +38,12 @@ class ReviewQueueItem(BaseModel):
     fairness_flag_count: int
     review_status: str
     created_at: datetime
+    # Populated for completed reviews
+    reviewer_name: str | None = None
+    reviewer_note: str | None = None
+    override_reason: str | None = None
+    final_decision: str | None = None
+    reviewed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

@@ -9,6 +9,8 @@ import type {
   DashboardSummary,
   EvaluateCaseResponse,
   PendingReview,
+  PolicyListResponse,
+  PolicyUpdateResponse,
   PolicyVersion,
 } from "@/lib/types";
 
@@ -66,12 +68,23 @@ export async function evaluateCase(caseId: string) {
   });
 }
 
+/** SSE URL for live pipeline progress while evaluating. */
+export function evaluateCaseStreamUrl(caseId: string) {
+  return `${API_BASE_URL}/cases/${caseId}/evaluate/stream`;
+}
+
 // ── Reviews ──────────────────────────────────────────────────────────────────
 
 export async function getPendingReviews() {
-  // Backend exposes GET /reviews?status=pending (not /reviews/pending)
   return request<{ items: PendingReview[]; total: number; pending_count: number }>(
     "/reviews?status=pending",
+  );
+}
+
+export async function getReviews(status?: string) {
+  const search = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request<{ items: PendingReview[]; total: number; pending_count: number }>(
+    `/reviews${search}`,
   );
 }
 
@@ -80,7 +93,6 @@ export async function submitReviewDecision(
   payload: {
     reviewer_name: string;
     decision: "APPROVE" | "REJECT";
-    // Field is reviewer_note in the backend ReviewDecisionRequest schema
     reviewer_note: string;
     override_reason: string | null;
   },
@@ -94,8 +106,15 @@ export async function submitReviewDecision(
 // ── Policies ─────────────────────────────────────────────────────────────────
 
 export async function getPolicies() {
-  // GET /policies/active returns the full active PolicyVersionDetail with rules
   return request<PolicyVersion>("/policies/active");
+}
+
+export async function getPolicyHistory() {
+  return request<PolicyListResponse>("/policies");
+}
+
+export async function getPolicyVersion(policyId: number) {
+  return request<PolicyVersion>(`/policies/${policyId}`);
 }
 
 export async function updatePolicies(payload: {
@@ -104,10 +123,15 @@ export async function updatePolicies(payload: {
   rules: PolicyVersion["rules"];
   created_by: string;
 }) {
-  // Backend endpoint is POST /policies/publish (not /policies/update)
-  return request<PolicyVersion>("/policies/publish", {
+  return request<PolicyUpdateResponse>("/policies/publish", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function rollbackPolicy(policyId: number) {
+  return request<PolicyVersion>(`/policies/${policyId}/rollback`, {
+    method: "POST",
   });
 }
 

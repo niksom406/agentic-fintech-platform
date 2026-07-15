@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.agents import orchestrator
 from app.models import AuditLog, Case, GovernanceFlag, HumanReview, PolicyResult, RiskResult
 from app.services.governance_engine import evaluate_governance
+from app.services.pipeline_progress import ProgressCallback, emit_progress
 from app.services.policy_engine import evaluate_policy_rules, get_active_policy
 from app.services.risk_engine import compute_risk
 
@@ -41,8 +42,6 @@ def _determine_final_decision(
     """
     Deterministic decision logic — this is the guardrail that overrides everything.
     Order of precedence: REJECT > ESCALATE > APPROVE
-
-    Returns: (decision, requires_human_review)
     """
     if policy_output["has_rejection"]:
         return "REJECT", False
@@ -75,12 +74,14 @@ def _build_deterministic_explanation(case: Case) -> str:
     )
 
 
-def evaluate_case(db: Session, case_id: str) -> Case:
+def evaluate_case(
+    db: Session,
+    case_id: str,
+    on_progress: ProgressCallback | None = None,
+) -> Case:
     """
-    Runs the full evaluation pipeline for a case:
-    intake (already done) → policy → risk → governance → decision → audit
-
-    In Phase 3, LLM agents will be called between these steps.
+    Runs the full evaluation pipeline for a case.
+    Optionally streams stage progress via on_progress (used by SSE).
     """
     case = get_case_with_relations(db, case_id)
     if case is None:
@@ -93,12 +94,15 @@ def evaluate_case(db: Session, case_id: str) -> Case:
     db.execute(delete(GovernanceFlag).where(GovernanceFlag.case_pk == case.id))
     db.execute(delete(HumanReview).where(HumanReview.case_pk == case.id))
     db.execute(delete(RiskResult).where(RiskResult.case_pk == case.id))
+    case.langsmith_run_id = None
+    case.langsmith_trace_url = None
     db.flush()
 
     normalised = case.case_input.normalized_payload
     derived = case.case_input.derived_fields
 
     # ── Step 1: Policy engine ─────────────────────────────────────────────────
+    emit_progress(on_progress, stage="policy", status="running", message="Applying policy rules…")
     active_policy = get_active_policy(db)
     policy_output = evaluate_policy_rules(
         normalised, derived, active_policy.rules_json, active_policy.version
@@ -116,8 +120,15 @@ def evaluate_case(db: Session, case_id: str) -> Case:
                 f"Escalations: {policy_output['has_escalation']}.",
         details_json={"version": active_policy.version, "results": policy_output["results"]},
     ))
+    emit_progress(
+        on_progress,
+        stage="policy",
+        status="done",
+        message=f"Policy v{active_policy.version} complete",
+    )
 
     # ── Step 2: Risk engine ───────────────────────────────────────────────────
+    emit_progress(on_progress, stage="risk", status="running", message="Computing risk score…")
     risk_output = compute_risk(normalised, derived)
 
     db.add(RiskResult(
@@ -130,7 +141,7 @@ def evaluate_case(db: Session, case_id: str) -> Case:
         evidence_weakness_risk=risk_output["evidence_weakness_risk"],
         model_confidence_penalty=risk_output["model_confidence_penalty"],
         breakdown=risk_output["breakdown"],
-        llm_narrative=None,  # Phase 3: LLM risk agent fills this
+        llm_narrative=None,
     ))
 
     db.add(AuditLog(
@@ -140,8 +151,15 @@ def evaluate_case(db: Session, case_id: str) -> Case:
         summary=f"Risk score: {risk_output['overall_score']} ({risk_output['risk_level']}).",
         details_json=risk_output,
     ))
+    emit_progress(
+        on_progress,
+        stage="risk",
+        status="done",
+        message=f"Risk {risk_output['overall_score']} ({risk_output['risk_level']})",
+    )
 
     # ── Step 3: Governance engine ─────────────────────────────────────────────
+    emit_progress(on_progress, stage="governance", status="running", message="Checking fairness flags…")
     governance_output = evaluate_governance(normalised, derived, policy_output["results"], risk_output)
 
     for flag in governance_output["flags"]:
@@ -154,8 +172,15 @@ def evaluate_case(db: Session, case_id: str) -> Case:
         summary=governance_output["governance_status"],
         details_json={"flags": governance_output["flags"]},
     ))
+    emit_progress(
+        on_progress,
+        stage="governance",
+        status="done",
+        message=governance_output["governance_status"],
+    )
 
     # ── Step 4: Final decision ────────────────────────────────────────────────
+    emit_progress(on_progress, stage="decision", status="running", message="Applying guardrail decision…")
     final_decision, requires_review = _determine_final_decision(
         policy_output, governance_output, risk_output
     )
@@ -208,12 +233,11 @@ def evaluate_case(db: Session, case_id: str) -> Case:
     case.deterministic_explanation = explanation
     case.final_explanation = explanation
     case.explanation_mode = "deterministic"
+    emit_progress(on_progress, stage="decision", status="done", message=f"Decision: {final_decision}")
 
-    # Commit deterministic results first — this is always safe to persist
     db.commit()
 
     # ── Step 6: LangGraph LLM agent pipeline ──────────────────────────────────
-    # Refresh case after commit so SQLAlchemy attributes are not expired
     case = get_case_with_relations(db, case_id)
 
     try:
@@ -229,6 +253,7 @@ def evaluate_case(db: Session, case_id: str) -> Case:
             db=db,
             policy_outcome=policy_outcome_str,
             final_decision=final_decision,
+            on_progress=on_progress,
         )
 
         if llm_outputs:
@@ -239,13 +264,14 @@ def evaluate_case(db: Session, case_id: str) -> Case:
                     case_id, llm_rec, final_decision,
                 )
             case.explanation_mode = "llm_augmented"
+            case.langsmith_run_id = llm_outputs.get("langsmith_run_id")
+            case.langsmith_trace_url = llm_outputs.get("langsmith_trace_url")
             db.commit()
             logger.info("LLM pipeline complete for case %s", case_id)
         else:
             logger.info("LLM pipeline skipped for case %s (agents disabled)", case_id)
 
     except Exception as exc:
-        # LLM failure must never block the deterministic result
         logger.error(
             "LangGraph pipeline failed for case %s: %s\n%s",
             case_id, exc, traceback.format_exc(),

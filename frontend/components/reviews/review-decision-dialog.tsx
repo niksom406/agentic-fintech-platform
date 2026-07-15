@@ -24,6 +24,7 @@ export function ReviewDecisionDialog({ open, onOpenChange, review, caseDetail, o
   const [reviewerNote, setReviewerNote] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && review) {
@@ -31,6 +32,7 @@ export function ReviewDecisionDialog({ open, onOpenChange, review, caseDetail, o
       setDecision("APPROVE");
       setReviewerNote("");
       setOverrideReason("");
+      setFormError(null);
     }
   }, [open, review?.review_id]);
 
@@ -39,19 +41,48 @@ export function ReviewDecisionDialog({ open, onOpenChange, review, caseDetail, o
   }
 
   async function handleSubmit() {
+    const name = reviewerName.trim();
+    const note = reviewerNote.trim();
+    const override = overrideReason.trim();
+
+    if (!name) {
+      setFormError("Reviewer name is required.");
+      return;
+    }
+    if (note.length < 10) {
+      setFormError("Reviewer note must be at least 10 characters (required for audit).");
+      return;
+    }
+
+    setFormError(null);
     setSubmitting(true);
     try {
       await onSubmit({
-        reviewer_name: reviewerName,
+        reviewer_name: name,
         decision,
-        reviewer_note: reviewerNote,
-        override_reason: overrideReason || null,
+        reviewer_note: note,
+        override_reason: override || null,
       });
       setReviewerName("");
       setDecision("APPROVE");
       setReviewerNote("");
       setOverrideReason("");
       onOpenChange(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to submit review.";
+      // Surface FastAPI validation detail more cleanly when present
+      try {
+        const parsed = JSON.parse(message) as { detail?: Array<{ msg?: string }> | string };
+        if (typeof parsed.detail === "string") {
+          setFormError(parsed.detail);
+        } else if (Array.isArray(parsed.detail) && parsed.detail[0]?.msg) {
+          setFormError(parsed.detail.map((d) => d.msg).join(" "));
+        } else {
+          setFormError(message);
+        }
+      } catch {
+        setFormError(message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -102,13 +133,13 @@ export function ReviewDecisionDialog({ open, onOpenChange, review, caseDetail, o
                     <div>
                       <p className="text-sm text-muted-foreground">Loan amount</p>
                       <p className="mt-1 font-semibold">
-                        {formatCurrency(Number(caseDetail.case_input.normalized_payload.loan_amount ?? 0))}
+                        {formatCurrency(Number(caseDetail.case_input?.normalized_payload?.loan_amount ?? 0))}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Annual income</p>
                       <p className="mt-1 font-semibold">
-                        {formatCurrency(Number(caseDetail.case_input.normalized_payload.annual_income ?? 0))}
+                        {formatCurrency(Number(caseDetail.case_input?.normalized_payload?.annual_income ?? 0))}
                       </p>
                     </div>
                     <div>
@@ -147,11 +178,14 @@ export function ReviewDecisionDialog({ open, onOpenChange, review, caseDetail, o
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-sm font-medium">Reviewer note</p>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Reviewer note</p>
+                  <p className="text-xs text-muted-foreground">{reviewerNote.trim().length}/10 min</p>
+                </div>
                 <Textarea
                   value={reviewerNote}
                   onChange={(event) => setReviewerNote(event.target.value)}
-                  placeholder="Document the review outcome and any control notes."
+                  placeholder="Document the review outcome and any control notes (at least 10 characters)."
                 />
               </div>
               <div>
@@ -159,10 +193,15 @@ export function ReviewDecisionDialog({ open, onOpenChange, review, caseDetail, o
                 <Textarea
                   value={overrideReason}
                   onChange={(event) => setOverrideReason(event.target.value)}
-                  placeholder="Explain why the override is justified within policy."
+                  placeholder="Required only if your decision differs from the system recommendation."
                 />
               </div>
-              <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
+              {formError ? (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {formError}
+                </div>
+              ) : null}
+              <Button className="w-full" onClick={() => void handleSubmit()} disabled={submitting}>
                 {submitting ? "Submitting..." : "Submit review decision"}
               </Button>
             </CardContent>
